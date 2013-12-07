@@ -20,6 +20,7 @@ def get_datetime_station(file_name):
     with open(file_name, encoding='cp932') as f:
         datetime = f.readline().rstrip()
         station = f.readline().rstrip()
+        # FIXME: アニメであることを確認すること FIXME
     if datetime is None or station is None:
         raise BaseException('failed to read .ts.program.txt')
     if not station in STATIONS:
@@ -34,6 +35,7 @@ def convert_datetime(datetime):
     time = [int(i) for i in datetime[14:19].split(':')]
     # convert 24H to 30H
     if 0 <= time[0] <= 5:
+        # FIXME: 月をまたいだ時これだと対応できない :FIXME
         date[2] -= 1
         time[0] += 24
     return '{0[0]}{0[1]:02d}{0[2]:02d}{1[0]:02d}{1[1]:02d}'.format(date, time)
