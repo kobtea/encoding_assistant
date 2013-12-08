@@ -1,6 +1,11 @@
 *~
-~swp
+*swp
+*.pyc
 junk*
 *ts
 *ts.program.txt
 stg
+.project
+.pydevproject
+.settings
+config.ini

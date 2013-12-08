@@ -1,5 +1,4 @@
 # coding: utf-8
-
 import os
 import glob
 import configparser
@@ -7,12 +6,11 @@ import re
 import json
 import datetime
 
-
 class FileFilter:
     def __init__(self):
         # read configs
         self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
+        self.config.read('config.ini', encoding='utf-8')
         # directory
         self.record_dir = self.config.get('directory', 'record')
         self.trash_dir = self.config.get('directory', 'trash')
@@ -30,7 +28,6 @@ class FileFilter:
         self.tvtest_units = []
         # filter units
         self.__filter()
-        self.trash()
 
     # search units from the 'record' directoy
     def __get_units(self):
@@ -60,8 +57,13 @@ class FileFilter:
 
     # expect to have '.ts', '.ts.err' and '.ts.program.txt'
     def __is_lack_unit(self, unit):
-        unit_len = len(glob.glob('{0}{1}*'.format(self.record_dir, unit)))
-        return False if unit_len == 3 else True
+        if not os.path.exists("{0}{1}.ts".format(self.record_dir, unit)):
+            return True
+        if not os.path.exists("{0}{1}.ts.err".format(self.record_dir, unit)):
+            return True
+        if not os.path.exists("{0}{1}.ts.program.txt".format(self.record_dir, unit)):
+            return True
+        return False
 
     def __filter(self):
         for unit in self.units:
@@ -79,5 +81,5 @@ class FileFilter:
 
     def trash(self):
         for unit in self.trash_units:
-            print(glob.glob('{0}{1}*'.format(self.record_dir, unit)))
+            print(unit)
             #shutil.move(self.record_dir + file_name, trash_dir)
