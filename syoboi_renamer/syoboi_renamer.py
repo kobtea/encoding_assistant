@@ -1,4 +1,5 @@
 # coding: utf-8
+import os
 import sys
 import requests
 import configparser
@@ -23,6 +24,7 @@ class SyoboiRenamer:
 
     # get tuple of datetime and station strings from .ts.program.txt file
     def __get_datetime_station(self):
+        print(self.unit)
         with open(self.program_path, encoding='cp932') as f:
             date_time = f.readline().rstrip()
             station = f.readline().rstrip()
@@ -62,11 +64,19 @@ class SyoboiRenamer:
         except:
             raise BaseException('failed to get channel info from syoboi rss2 api')
 
+    def __file_name_escape(self, file_name):
+        esc = {"\\": "＼", "/": "／", ":": "：", "*": "＊", "?": "？", "\"": "”", "<": "＜", ">": "＞", "|": "｜"}
+        for key, val in esc.items():
+            file_name = file_name.replace(key, val)
+        return file_name
+
     # new title
     def __get_new_title(self):
         dic = self.channel_info
+        title = self.__file_name_escape(dic['Title'])
+        subtitle = self.__file_name_escape(dic['SubTitle'])
         return '{0}_#{1:02d}_「{2}」_({3})_{4}'.format(
-               dic['Title'], int(dic['Count']), dic['SubTitle'], dic['ChName'], self.date_time)
+               title, int(dic['Count']), subtitle, dic['ChName'], self.date_time)
 
     def __rename(self):
         print()
@@ -75,8 +85,9 @@ class SyoboiRenamer:
             f.write('\nOrignName : {0}\n'.format(self.unit))
         # rename and move to renamed directory
         for ext in ['.ts', '.ts.err', '.ts.program.txt']:
-            shutil.move(self.record_dir + self.unit + ext,
-                    self.renamed_dir + self.new_title + ext)
+            if os.path.exists(self.renamed_dir + self.new_title + ext):
+                raise BaseException('That file is already exists')
+            shutil.move(self.record_dir + self.unit + ext, self.renamed_dir + self.new_title + ext)
 
     def interpret(self):
         print('[BEFORE] {0}'.format(self.unit))
