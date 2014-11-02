@@ -9,3 +9,6 @@ stg
 .pydevproject
 .settings
 config.ini
+
+.idea
+*.iml

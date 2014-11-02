@@ -7,6 +7,7 @@ import datetime
 import re
 import shutil
 
+
 class SyoboiRenamer:
     def __init__(self, unit):
         self.config = configparser.ConfigParser()
@@ -45,7 +46,7 @@ class SyoboiRenamer:
         time = [int(i) for i in date_time[14:19].split(':')]
         # convert 24H to 30H
         if 0 <= time[0] <= 5:
-            date = datetime.date(date[0], date[1], date[2]) 
+            date = datetime.date(date[0], date[1], date[2])
             date = date - datetime.timedelta(days=1)
             date = date.strftime('%Y%m%d')
             time[0] += 24
@@ -76,7 +77,7 @@ class SyoboiRenamer:
         title = self.__file_name_escape(dic['Title'])
         subtitle = self.__file_name_escape(dic['SubTitle'])
         return '{0}_#{1:02d}_「{2}」_({3})_{4}'.format(
-               title, int(dic['Count']), subtitle, dic['ChName'], self.date_time)
+            title, int(dic['Count']), subtitle, dic['ChName'], self.date_time)
 
     def __rename(self):
         print()
@@ -100,5 +101,5 @@ class SyoboiRenamer:
             self.__rename()
             print('!!! Renamed !!!')
         else:
-            print('... Skip ...') 
+            print('... Skip ...')
         return 0

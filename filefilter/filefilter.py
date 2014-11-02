@@ -7,6 +7,7 @@ import json
 import datetime
 import shutil
 
+
 class FileFilter:
     def __init__(self):
         # read configs
@@ -19,9 +20,9 @@ class FileFilter:
         self.renamed_dir = self.config.get('directory', 'renamed')
         self.encode_dir = self.config.get('directory', 'encode')
         # lists
-        #   .ts file list
+        # .ts file list
         self.units = self.__get_units(self.record_dir)
-        #   not have any of '.ts', '.ts.err' and '.ts.program.txt'
+        # not have any of '.ts', '.ts.err' and '.ts.program.txt'
         self.lack_units = []
         #   '.ts' may be broken
         self.broken_units = []
@@ -80,7 +81,7 @@ class FileFilter:
                 self.trash_units.append(unit)
                 continue
             # broken filter
-            #   TODO: later
+            # TODO: later
             if not self.__is_lack_unit(unit):
                 self.tvtest_units.append(unit)
 
@@ -89,7 +90,7 @@ class FileFilter:
             print(unit)
             for ext in ['.ts', '.ts.err', '.ts.program.txt']:
                 shutil.move(self.record_dir + unit + ext, self.trash_dir)
-                
+
     def move_pre_enc(self):
         window_size_dict = self.config._sections['window_size']
         units = self.__get_units(self.renamed_dir)
@@ -160,8 +161,8 @@ def move():
         # Copy
         for dst_dir in dst_dirs:
             if os.path.exists('{0}\\{1}'.format(dst_dir, file_name)):
-                    print('This file already exists ... skip')
-                    continue
+                print('This file already exists ... skip')
+                continue
             print('Copy to : {0} ...'.format(dst_dir), end='')
             shutil.copy(move_src_dir + file_name, dst_dir)
             print('done')
