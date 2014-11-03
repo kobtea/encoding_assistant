@@ -2,15 +2,20 @@
 from docopt import docopt
 from resource.resource import Explorer, ResourceFilter
 from logging import getLogger, StreamHandler, DEBUG
-#from filefilter import filefilter
+# from filefilter import filefilter
 from syoboi_renamer.syoboi_renamer import SyoboiRenamer
+from tmpgencvmw5.assistant import Assistant
+import configparser
 
 usage = """Encoding Assistant
 
 Usage:
     main.py trash
     main.py rename
+    main.py setup (-t | -s | --path <path>)
 """
+
+CONFIG_FILE = './config.ini'
 
 LOG_LEVEL = DEBUG
 LOG_HANDLER = StreamHandler()
@@ -29,7 +34,7 @@ class Task:
         LOG.debug('{0:*^80}'.format(' Trash '))
         ex = Explorer()
         LOG.debug('{0:-^80}'.format('Trash Blacklist'))
-        for r in ex.resources:
+        for r in ex.resources():
             if ResourceFilter.is_in_blacklist(r):
                 ex.trash(r)
         LOG.debug('{0:-^80}'.format('Trash Duplicate'))
@@ -41,31 +46,25 @@ class Task:
         LOG.debug('{0:*^80}'.format(' Rename '))
         renamer = SyoboiRenamer()
         ex = Explorer()
-        for r in ex.resources:
+        for r in ex.resources():
             LOG.debug(u'Try Rename {0}'.format(r.name))
             new_title = renamer.find(r)
             if new_title:
                 ex.interactive_rename(r, new_title)
 
+    @classmethod
+    def setup(cls, work_dir):
+        LOG.debug('{0:*^80}'.format(' Setup TMPGEncVMW5 '))
+        assistant = Assistant()
+        ex = Explorer()
+        assistant.add_files(ex.resources(work_dir))
+
 
 """
-def trash(file_filter):
-    print('{0:*^80}'.format(' Trash '))
-    file_filter.trash()
-
-
 def move_pre_enc(file_filter):
     print('{0:*^80}'.format(' Move Pre-Encode '))
     file_filter.move_pre_enc()
-
-
-def rename(file_filter):
-    print('{0:*^80}'.format(' Rename Anime '))
-    for unit in file_filter.tvtest_units:
-        renamer = syoboi_renamer.SyoboiRenamer(unit)
-        renamer.interpret()
 """
-
 
 if __name__ == '__main__':
     args = docopt(usage, version='1.0.0')
@@ -73,8 +72,19 @@ if __name__ == '__main__':
         Task.trash()
     if args['rename']:
         Task.rename()
-    #file_filter = filefilter.FileFilter()
-    # trash(file_filter)
-    # rename(file_filter)
-    # move_pre_enc(file_filter)
-    #filefilter.move()
+    if args['setup']:
+        config = configparser.ConfigParser()
+        config.read(CONFIG_FILE, encoding='utf-8')
+        work_dir = None
+        if args['-t']:
+            work_dir = config.get('directory', 'workspace_t')
+        if args['-s']:
+            work_dir = config.get('directory', 'workspace_s')
+        if args['--path']:
+            work_dir = args['path']
+        Task.setup(work_dir)
+        #file_filter = filefilter.FileFilter()
+        # trash(file_filter)
+        # rename(file_filter)
+        # move_pre_enc(file_filter)
+        #filefilter.move()

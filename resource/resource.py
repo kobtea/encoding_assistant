@@ -75,16 +75,23 @@ class Explorer:
         self.broken_dir = self.config.get('directory', 'broken')
         self.renamed_dir = self.config.get('directory', 'renamed')
         self.encode_dir = self.config.get('directory', 'encode')
-        # ts files
-        resources = [Resource(ts) for ts in self.get_recorded_ts()]
-        self.resources = filter(lambda x: x.is_passed_enough_time(), resources)
 
-    def get_recorded_ts(self):
-        return [s.decode('cp932') for s in glob.glob('{0}*.ts'.format(self.record_dir))]
+    def get_recorded_ts(self, directory=None):
+        if directory is None:
+            directory = self.record_dir
+        else:
+            if not os.path.exists(directory):
+                LOG.error(u'No Such Directory: {}'.format(directory))
+                raise Exception('No Such Directory')
+        return [s.decode('cp932') for s in glob.glob('{0}*.ts'.format(directory))]
+
+    def resources(self, directory=None):
+        resources = [Resource(ts) for ts in self.get_recorded_ts(directory)]
+        return filter(lambda x: x.is_passed_enough_time(), resources)
 
     def duplicates(self):
         dupes = []
-        for resource in self.resources:
+        for resource in self.resources():
             dup = re.search(u'\)-\(\d\)', resource.name)
             if dup:
                 base_name = os.path.join(resource.dir, resource.name[:dup.start() + 1])
