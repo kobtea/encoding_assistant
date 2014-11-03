@@ -1,105 +1,98 @@
 # coding: utf-8
 import os
-import sys
 import requests
 import configparser
 import datetime
 import re
-import shutil
+from logging import getLogger, StreamHandler, DEBUG
+from parse import parse
+
+
+CONFIG_FILE = './config.ini'
+LOG_LEVEL = DEBUG
+
+LOG_HANDLER = StreamHandler()
+LOG_HANDLER.setLevel(LOG_LEVEL)
+LOG = getLogger(__name__)
+LOG.setLevel(LOG_LEVEL)
+LOG.addHandler(LOG_HANDLER)
 
 
 class SyoboiRenamer:
-    def __init__(self, unit):
+    def __init__(self):
         self.config = configparser.ConfigParser()
-        self.config.read('config.ini', encoding='utf-8')
-        self.unit = unit
-        self.record_dir = self.config.get("directory", "record")
-        self.renamed_dir = self.config.get("directory", "renamed")
-        self.ts_path = "{0}{1}.ts".format(self.record_dir, unit)
-        self.err_path = "{0}{1}.ts.err".format(self.record_dir, unit)
-        self.program_path = "{0}{1}.ts.program.txt".format(self.record_dir, unit)
-        self.is_anime, self.date_time, self.station = self.__get_datetime_station()
-        self.date_time = self.__convert_datetime(self.date_time)
-        self.channel_info = self.__get_channel_info(self.date_time, self.station)
-        self.new_title = self.__get_new_title()
+        self.config.read(CONFIG_FILE, encoding='utf-8')
+        self.record_dir = self.config.get('directory', 'record')
+        self.renamed_dir = self.config.get('directory', 'renamed')
 
-    # get tuple of datetime and station strings from .ts.program.txt file
-    def __get_datetime_station(self):
-        print(self.unit)
-        with open(self.program_path, encoding='cp932') as f:
-            date_time = f.readline().rstrip()
-            station = f.readline().rstrip()
-            if re.search("アニメ／特撮 - 国内アニメ", f.read()):
-                is_anime = True
-            else:
-                is_anime = False
-        if date_time is None or station is None:
-            raise BaseException('failed to read .ts.program.txt')
-        if not station in self.config['station']:
-            raise BaseException('no such station : {0}'.format(station))
-        return (is_anime, date_time, self.config['station'][station])
+    def find(self, resource):
+        # check genre
+        if resource.genre() != 'anime':
+            return None
+        # station
+        station = self.detect_station(resource.name)
+        # date
+        date = datetime.datetime.fromtimestamp(os.stat(resource.ts_file).st_ctime)
+        date += datetime.timedelta(minutes=1)
+        date_str = self.detect_date(date)
 
-    # input  : 2013/11/25(月) 01:30～02:00
-    # return : 201311242530
-    def __convert_datetime(self, date_time):
-        date = [int(i) for i in date_time[:10].split('/')]
-        time = [int(i) for i in date_time[14:19].split(':')]
-        # convert 24H to 30H
-        if 0 <= time[0] <= 5:
-            date = datetime.date(date[0], date[1], date[2])
-            date = date - datetime.timedelta(days=1)
-            date = date.strftime('%Y%m%d')
-            time[0] += 24
+        new_title = self.detect_new_title(date_str, station)
+        return new_title
+
+    def parse_input_filename(self, file_name):
+        input_format = self.config.get('file', 'input_format')
+        return parse(input_format, file_name)
+
+    def detect_station(self, file_name):
+        station = None
+        try:
+            station = self.parse_input_filename(file_name)['station']
+            dup = re.match('(.+)\)-\(\d', station)
+            if dup:
+                station = dup.group(1)
+            station = self.config['station'][station]
+        except TypeError as e:
+            LOG.error(u'Failed to parse input filename: {}'.format(file_name))
+            raise Exception(u'Failed to parse input filename: {}'.format(e))
+        except KeyError as e:
+            LOG.error(u'No Such Station: {}'.format(station))
+            raise Exception(u'No Such Station: {}'.format(e))
+        return station
+
+    @classmethod
+    def detect_date(cls, date):
+        if 0 <= date.hour <= 5:
+            # convert 24H to 30H
+            date -= datetime.timedelta(days=1)
+            date_str = str(long(date.strftime('%Y%m%d%H%M')) + 2400)
         else:
-            date = "{0}{1:02d}{2:02d}".format(date[0], date[1], date[2])
-        return '{0}{1[0]:02d}{1[1]:02d}'.format(date, time)
+            date_str = date.strftime('%Y%m%d%H%M')
+        return date_str
 
-    # call syoboi rss2 api
-    def __get_channel_info(self, dt_start, station):
-        rss2 = 'http://cal.syoboi.jp/rss2.php?alt=json&start={0}'.format(dt_start)
+    def detect_new_title(self, date_str, station):
+        item = self.call_syoboi_api(date_str, station)
+        title = self.escape(item['Title'])
+        chapter = int(item['Count']) if item['Count'] is not None else 0
+        subtitle = self.escape(item['SubTitle']) if item['SubTitle'] is not None else u''
+        output_format = self.config.get('file', 'output_format')
+        return output_format.format(title=title, chapter=chapter, subtitle=subtitle, station=station,
+                                    date=date_str)
+
+    @classmethod
+    def call_syoboi_api(cls, date_str, station):
+        rss2 = 'http://cal.syoboi.jp/rss2.php?alt=json&start={0}'.format(date_str)
         try:
             res = requests.get(rss2).json()
             for item in res['items']:
                 if item['ChName'] == station:
                     return item
         except:
-            raise BaseException('failed to get channel info from syoboi rss2 api')
+            raise Exception(u'Failed to get channel info')
 
-    def __file_name_escape(self, file_name):
-        esc = {"\\": "＼", "/": "／", ":": "：", "*": "＊", "?": "？", "\"": "”", "<": "＜", ">": "＞", "|": "｜"}
+    @classmethod
+    def escape(cls, string):
+        esc = {u'\\': u'＼', u'/': u'／', u':': u'：', u'*': u'＊', u'?': u'？',
+               u'\"': u'”', u'<': u'＜', u'>': u'＞', u'|': u'｜'}
         for key, val in esc.items():
-            file_name = file_name.replace(key, val)
-        return file_name
-
-    # new title
-    def __get_new_title(self):
-        dic = self.channel_info
-        title = self.__file_name_escape(dic['Title'])
-        subtitle = self.__file_name_escape(dic['SubTitle'])
-        return '{0}_#{1:02d}_「{2}」_({3})_{4}'.format(
-            title, int(dic['Count']), subtitle, dic['ChName'], self.date_time)
-
-    def __rename(self):
-        print()
-        # backup origin name to .ts.program.txt
-        with open(self.program_path, 'a') as f:
-            f.write('\nOrignName : {0}\n'.format(self.unit))
-        # rename and move to renamed directory
-        for ext in ['.ts', '.ts.err', '.ts.program.txt']:
-            if os.path.exists(self.renamed_dir + self.new_title + ext):
-                raise BaseException('That file is already exists')
-            shutil.move(self.record_dir + self.unit + ext, self.renamed_dir + self.new_title + ext)
-
-    def interpret(self):
-        print('[BEFORE] {0}'.format(self.unit))
-        if not self.is_anime:
-            print('This file is not anime ...Skip...')
-            return 1
-        print('[AFTER ] {0}'.format(self.new_title))
-        ans = input('Rename it? [y/N] ')
-        if ans == 'y':
-            self.__rename()
-            print('!!! Renamed !!!')
-        else:
-            print('... Skip ...')
-        return 0
+            string = string.replace(unicode(key), unicode(val))
+        return string

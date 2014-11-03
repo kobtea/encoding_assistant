@@ -3,12 +3,13 @@ from docopt import docopt
 from resource.resource import Explorer, ResourceFilter
 from logging import getLogger, StreamHandler, DEBUG
 #from filefilter import filefilter
-#from syoboi_renamer import syoboi_renamer
+from syoboi_renamer.syoboi_renamer import SyoboiRenamer
 
 usage = """Encoding Assistant
 
 Usage:
     main.py trash
+    main.py rename
 """
 
 LOG_LEVEL = DEBUG
@@ -35,6 +36,17 @@ class Task:
         for d in ex.duplicates():
             map(lambda x: ex.trash(x), ResourceFilter.duplicates(d))
 
+    @classmethod
+    def rename(cls):
+        LOG.debug('{0:*^80}'.format(' Rename '))
+        renamer = SyoboiRenamer()
+        ex = Explorer()
+        for r in ex.resources:
+            LOG.debug(u'Try Rename {0}'.format(r.name))
+            new_title = renamer.find(r)
+            if new_title:
+                ex.interactive_rename(r, new_title)
+
 
 """
 def trash(file_filter):
@@ -59,6 +71,8 @@ if __name__ == '__main__':
     args = docopt(usage, version='1.0.0')
     if args['trash']:
         Task.trash()
+    if args['rename']:
+        Task.rename()
     #file_filter = filefilter.FileFilter()
     # trash(file_filter)
     # rename(file_filter)

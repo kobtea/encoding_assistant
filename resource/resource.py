@@ -76,7 +76,8 @@ class Explorer:
         self.renamed_dir = self.config.get('directory', 'renamed')
         self.encode_dir = self.config.get('directory', 'encode')
         # ts files
-        self.resources = [Resource(ts) for ts in self.get_recorded_ts()]
+        resources = [Resource(ts) for ts in self.get_recorded_ts()]
+        self.resources = filter(lambda x: x.is_passed_enough_time(), resources)
 
     def get_recorded_ts(self):
         return [s.decode('cp932') for s in glob.glob('{0}*.ts'.format(self.record_dir))]
@@ -91,13 +92,37 @@ class Explorer:
                     dupes.append(base_name)
         return dupes
 
-    def rename(self):
-        # TODO: IMPLEMENT
-        pass
+    def rename(self, resource, new_name):
+        if resource.program_file:
+            # backup origin name to .ts.program.txt
+            with codecs.open(resource.program_file, mode='a', encoding='cp932') as f:
+                f.write(u'\nOriginName : {0}'.format(resource.name))
+        self.move(resource, self.renamed_dir, new_name)
 
-    def move(self, dst_dir):
-        # TODO: IMPLEMENT
-        pass
+    def interactive_rename(self, resource, new_name):
+        print u'[BEFORE] {0}'.format(resource.name)
+        print u'[AFTER ] {0}'.format(new_name)
+        ans = raw_input(u'Rename it? [y/N/e]')
+        if ans == u'y':
+            self.rename(resource, new_name)
+            print u'![Renamed]!'
+        elif ans == u'e':
+            exit(u'Bye')
+        else:
+            print u'[Skip]'
+
+    @classmethod
+    def move(cls, resource, dst_dir, dst_name=None):
+        if dst_name is None:
+            dst_name = resource.name
+        LOG.debug(u'![Move]! {0} : {1} -> {2}'.format(dst_name, resource.dir, dst_dir))
+        for ext in [u'.ts', u'.ts.program.txt', u'.ts.err']:
+            dst_file = os.path.join(dst_dir, dst_name + ext)
+            if os.path.exists(dst_file):
+                raise Exception(u'File already exist: {0}'.format(dst_file))
+            src_file = os.path.join(resource.dir, resource.name + ext)
+            if os.path.exists(src_file):
+                shutil.move(src_file, dst_file)
 
     def trash(self, resource):
         if not resource.is_passed_enough_time():
