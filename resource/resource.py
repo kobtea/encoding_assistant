@@ -95,7 +95,7 @@ class Explorer:
             dup = re.search(u'\)-\(\d\)', resource.name)
             if dup:
                 base_name = os.path.join(resource.dir, resource.name[:dup.start() + 1])
-                if len(filter(lambda x: base_name in x.ts_file, self.resources)) >= 2:
+                if len(filter(lambda x: base_name in x.ts_file, self.resources())) >= 2:
                     dupes.append(base_name)
         return dupes
 
