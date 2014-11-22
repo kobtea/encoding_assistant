@@ -13,6 +13,7 @@ Usage:
     main.py trash
     main.py rename
     main.py setup (-t | -s | --path <path>)
+    main.py move_pre_enc (-l <length>)
 """
 
 CONFIG_FILE = './config.ini'
@@ -59,12 +60,11 @@ class Task:
         ex = Explorer()
         assistant.add_files(ex.resources(work_dir))
 
+    @classmethod
+    def move_pre_enc(cls, length):
+        LOG.debug('{0:*^80}'.format(' Move Pre-Encode '))
+        Explorer().move_pre_enc(length)
 
-"""
-def move_pre_enc(file_filter):
-    print('{0:*^80}'.format(' Move Pre-Encode '))
-    file_filter.move_pre_enc()
-"""
 
 if __name__ == '__main__':
     args = docopt(usage, version='1.0.0')
@@ -81,10 +81,12 @@ if __name__ == '__main__':
         if args['-s']:
             work_dir = config.get('directory', 'workspace_s')
         if args['--path']:
-            work_dir = args['path']
+            work_dir = args['<path>']
         Task.setup(work_dir)
-        #file_filter = filefilter.FileFilter()
+    if args['move_pre_enc']:
+        Task.move_pre_enc(int(args['<length>']))
+        # file_filter = filefilter.FileFilter()
         # trash(file_filter)
         # rename(file_filter)
         # move_pre_enc(file_filter)
-        #filefilter.move()
+        # filefilter.move()

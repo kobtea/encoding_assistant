@@ -140,6 +140,28 @@ class Explorer:
             shutil.move(f, self.trash_dir)
         return True
 
+    def move_pre_enc(self, length):
+        window_size_dict = {}
+        for k, v in dict(self.config.items(u'window_size')).items():
+            window_size_dict[k] = json.loads(v)
+        resources = self.resources(self.renamed_dir)
+        for resource in resources:
+            if length < 1:
+                break
+            try:
+                station = resource.name.split('_')[-2][1:-1]
+            except:
+                raise BaseException(u'Fail to detect station name: {0}'.format(resource))
+            window_size = u''
+            for size, stations in window_size_dict.items():
+                if station in stations:
+                    window_size = size
+            if window_size == u'':
+                raise BaseException('No such station in window_size: {0}'.format(station))
+            dst_dir = os.path.join(self.encode_dir, u'anime_{0}'.format(window_size))
+            self.move(resource, dst_dir)
+            length -= 1
+
 
 class ResourceFilter:
     config = configparser.ConfigParser()
